@@ -1,11 +1,11 @@
 tmp
 __pycache__
 
-tmp/
-__pycache__/
-venv/
+/tmp/
+/__pycache__/
+/venv/
 
 .DS_Store
 .log
 .out
-.idea/
+/.idea/

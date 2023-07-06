@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GitLab项目配置</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+    <script src="jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>GitLab项目配置</h1>
+    
+    <form action="/add_project" method="post">
+        <label for="project_name">项目名称:</label>
+        <input type="text" id="project_name" name="project_name" required>
+        
+        <label for="project_url">项目地址:</label>
+        <input type="text" id="project_url" name="project_url" required>
+        
+        <input type="submit" value="保存配置">
+    </form>
+    
+    <table>
+        <tr>
+            <th>projectId</th>
+            <th>项目名称</th>
+            <th>项目地址</th>
+            <th>群组名</th>
+            <th>操作</th>
+        </tr>
+        {% for project in projects %}
+        <tr>
+            <td>{{ project.project_id }}</td>
+            <td>{{ project.project_name }}</td>
+            <td>{{ project.project_url }}</td>
+            <td>{{ project.group_name }}</td>
+            <td>
+                <a attr="del" href="javascript:;" pid="{{project.id}}">删除</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+<script>
+    $(document).ready(function() {
+      $("a[attr=del]").click(function() {
+        id = $(this).attr("pid");
+        $.ajax({
+          url: '/test_req',
+          type: 'POST',
+          contentType: 'application/json',
+          data: {id:id},
+          success: function(response) {
+            // 处理成功响应
+            console.log(response)
+          },
+          error: function(xhr, status, error) {
+            // 处理错误响应
+            console.log(xhr.responseText);
+          }
+        });
+      });
+    });
+  </script>
+</html>

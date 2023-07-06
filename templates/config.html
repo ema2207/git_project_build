@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GitLab配置</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>GitLab配置</h1>
+    
+    <form action="/save_config" method="post">
+        <label for="gitlab_url">GitLab地址:</label>
+        <input type="text" id="gitlab_url" name="gitlab_url" value="{% if gitlab_config %}{{ gitlab_config.gitlab_url }}{% endif %}"  required>
+        
+        <label for="gitlab_token">GitLab Token:</label>
+        <input type="text" id="gitlab_token" name="gitlab_token" value="{% if gitlab_config %}{{ gitlab_config.gitlab_token }}{% endif %}" required>
+        
+        <input type="submit" value="保存配置">
+    </form>
+</body>
+</html>

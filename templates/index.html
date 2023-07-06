@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>项目deploy</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+    
+    <script src='{{ url_for("static",filename = "../static/js/jquery-3.6.0.min.js") }}'></script>
+</head>
+<body>
+    <h1>项目deploy</h1>
+    <div>
+        <ul>
+            <li><a href="../ignore_projects" target="_blank">忽略项目维护</a></li>
+            <li><a href="../ignore_groups" target="_blank">忽略分组维护</a></li>
+            <!--<li><a href="../config" target="_blank">git配置</a></li>-->
+            <li><a href="javascript:;" id = "reload">reload</a></li>
+        </ul>
+    </div>
+    <table>
+        <tbody>
+            <td>&nbsp;</td>
+            <td>请选择项目所在组</td>
+            <td>
+                <div>
+                    <select name="git_group" id="git_group">
+                        <option value="">请选择组</option>
+                        {% for group in gitGroups %}
+                        <option value="{{group.id}}" group="{{group.name}}" placeholder="{{group.description}}">{{group.name}}</option>
+                        {% endfor %}
+                    </select>
+                    <button id="deploy">deploy</button>
+                </div>
+            </td>
+            <td></td>
+        </tbody>
+    </table>
+    <table id="project_table">
+        <thead>
+            <tr>
+                <th>
+                    <input type="checkbox" name="all_select">
+                </th>
+                <th>projectId</th>
+                <th>项目名称</th>
+                <th>ssh_url_to_repo</th>
+                <th>分支</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</body>
+
+<div id="loading" style="display:none;position:fixed;z-index: 1000;top:0;left:0;height:100%;width: 100%;background: rgba(0,0,0,0.2);"></div>
+<script>
+    $(document).ready(function() {
+        $("#reload").click(function(){
+            $.ajax({
+                url: '/reload',
+                type: 'GET',
+                async: false,
+                contentType: 'application/json',
+                success: function(response) {
+                    window.loacation.reload()
+                },
+                error: function(xhr, status, error) {
+                    // 处理错误响应
+                    console.log(xhr.responseText);
+                }
+            });
+        });
+
+        $("#deploy").click(function(){
+            var deployProjects = new Array();
+            $(".project_checkbox").each(function(){
+                if($(this).prop("checked")){
+                    var projectId = $(this).val();
+                    var ssh_url_to_repo = $(this).attr("ssh_url_to_repo");
+                    var path_with_namespace = $(this).attr("path_with_namespace");
+                    var http_url_to_repo = $(this).attr("http_url_to_repo");
+                    var branch_select = $(this).parent().parent().find("select");
+                    var branch = branch_select.val();
+                    var proJson = {"projectId":projectId,
+                            "branch":branch,
+                            "ssh_url_to_repo":ssh_url_to_repo,
+                            "http_url_to_repo":http_url_to_repo,
+                            "path_with_namespace":path_with_namespace};
+                    deployProjects.push(proJson);
+                }
+            });
+            if(deployProjects.length == 0){
+                alert("请选择项目，并选择对应的分支");
+                return 
+            }
+            var group_id = $("#git_group").val();
+            var group_name = $("#git_group").find("option:selected").attr("group");
+            data_json = {"group_name":group_name,"group_id":group_id,"projects":deployProjects};
+            console.log(data_json)
+            $.ajax({
+                url: '/deploy_project',
+                type: 'POST',
+                async: false,
+                contentType: 'application/json',
+                data: JSON.stringify(data_json),  // 发送的JSON数据
+                success: function(response) {
+                    // response = JSON.stringify(response,null,3);
+                    // console.log(response);
+                    response = eval('('+response+')');
+                    // console.log(response.data);
+                },
+                error: function(xhr, status, error) {
+                    // 处理错误响应
+                    console.log(xhr.responseText);
+                }
+            });
+        });
+
+        $("input[name=all_select]").click(function(){
+            var isChecked = $(this).prop("checked");
+            $(".project_checkbox").prop("checked",isChecked);
+        });
+        $(document).on('click',".project_checkbox",function(){
+            var unheckedExists = $(".project_checkbox").not(":checked").length>0;
+            // console.log(unheckedExists);
+            $("input[name=all_select]").prop("checked",!unheckedExists);
+        });
+
+        $("#git_group").on("change",function(){
+            $("#loading").show();
+            $("#deploy").attr("disabled",true);
+            groupId = $(this).val()
+            queryProjectsByGroupId(groupId)
+            $("#deploy").removeAttr("disabled");
+            $("#loading").hide();
+        });
+
+        function queryProjectsByGroupId(groupId){
+            if(groupId == ''){
+                alert("请选择分组")
+                return ;
+            }
+            $.ajax({
+                url: '/projects_by_group/'+groupId,
+                type: 'POST',
+                async: false,
+                contentType: 'application/json',
+                data: JSON.stringify({'groupId':groupId}),  // 发送的JSON数据
+                success: function(response) {
+                    // response = JSON.stringify(response,null,3);
+                    // console.log(response);
+                    response = eval('('+response+')');
+                    // console.log(response.data);
+                    build_data(response.data);
+                    $("input[name=all_select]").prop("checked",false);
+                },
+                error: function(xhr, status, error) {
+                    // 处理错误响应
+                    console.log(xhr.responseText);
+                }
+            });
+        }
+
+        function build_data(projects){
+            var table_tiltle_tr = $("#project_table tbody");
+            table_tiltle_tr.empty();
+            var data_tr_html = '';
+            // console.log(projects)
+            for (var i = 0 ; i < projects.length ;i++){
+                var project = projects[i];
+                data_tr_html+='<tr>';
+                data_tr_html+='<td>';
+                data_tr_html+='<input type="checkbox" name="project_checkbox" class="project_checkbox" value="'+project.id+'" ';
+                data_tr_html+='path_with_namespace="'+project.path_with_namespace+'" ssh_url_to_repo="'+project.ssh_url_to_repo+'" http_url_to_repo="'+project.http_url_to_repo+'"></td>';
+                data_tr_html+='<td>'+project.id+'</td>';
+                data_tr_html+='<td>'+project.project_name+'</td>';
+                data_tr_html+='<td>'+project.ssh_url_to_repo+'</td>';
+                var select_branch_html = '<select name="branch">';
+                for(var j = 0; j < project.branchs.length; j++){
+                    var branch = project.branchs[j];
+                    select_branch_html+='<option value="'+branch+'">'+branch+'</option>'
+                }
+                select_branch_html += '</select>';
+                data_tr_html+='<td>'+select_branch_html+'</td>';
+                data_tr_html+='</tr>';
+            }
+            table_tiltle_tr.html(data_tr_html);
+        }
+    });
+  </script>
+
+</html>
+
